@@ -1,7 +1,8 @@
 % =====================================================================
 %  Informe + Anexos — Actividad 1: LCS
 %  Documento autocontenido: todo el código y los datos están incrustados.
-%  Sin enlaces externos ni repositorios. Compilar con:
+%  Repositorio: https://github.com/carpediemservus/lcs-actividad1
+%  Compilar con:
 %      pdflatex informe.tex && pdflatex informe.tex
 % =====================================================================
 \documentclass[11pt,a4paper]{article}
@@ -24,7 +25,7 @@
 \usepackage{caption}
 \captionsetup{font=small,labelfont=bf,skip=4pt}
 
-% ---------- Hipervínculos internos (sin URLs externas) ----------
+% ---------- Hipervínculos ----------
 \usepackage{xcolor}
 \usepackage[hidelinks]{hyperref}
 
@@ -95,7 +96,8 @@ comportamiento exponencial de la versión recursiva, el uso lineal de
 memoria de Hirschberg y el equilibrio entre simplicidad y consumo de
 memoria de la versión tabular. El código fuente completo, el protocolo
 experimental y los resultados brutos se incluyen en los anexos de este
-mismo documento.
+mismo documento y en el repositorio público
+\url{https://github.com/carpediemservus/lcs-actividad1}.
 
 \medskip
 \noindent\textbf{Palabras clave:} LCS, divide y vencerás, Hirschberg,
@@ -475,7 +477,8 @@ Este anexo contiene la totalidad del código entregado. Los ficheros
 están organizados de modo que, copiados en una carpeta local con la
 estructura indicada en el Anexo~\ref{anexo:repro}, el proyecto se
 ejecuta con un único comando (\texttt{make run}). Todo el contenido está
-incrustado en este documento; no se requiere ningún recurso externo.
+incrustado en este documento y también está disponible en el repositorio
+\url{https://github.com/carpediemservus/lcs-actividad1}.
 
 \subsection{Estructura del proyecto}
 
@@ -1035,14 +1038,16 @@ OK: 305 casos verificados en las 3 versiones.
 \section{Instrucciones de reproducción local}\label{anexo:repro}
 
 Todo el código y los datos necesarios están contenidos en este
-documento. Para reproducir los resultados en un equipo local:
+documento y en el repositorio público
+\url{https://github.com/carpediemservus/lcs-actividad1}. Para reproducir
+los resultados en un equipo local:
 
 \begin{enumerate}
-    \item Cree una carpeta de trabajo, por ejemplo \texttt{lcs/}.
-    \item Copie en ella los ficheros del Anexo~\ref{anexo:codigo}
-          respetando la estructura indicada en la
-          Sección~\ref{anexo:codigo} (carpetas \texttt{src/} y
-          \texttt{Makefile} en la raíz).
+    \item Clone el repositorio:
+          \texttt{git clone https://github.com/carpediemservus/lcs-actividad1}.
+          Como alternativa, cree una carpeta de trabajo y copie en ella los
+          ficheros del Anexo~\ref{anexo:codigo} respetando la estructura
+          indicada (carpeta \texttt{src/} y \texttt{Makefile} en la raíz).
     \item Verifique que dispone de Python~3.9 o superior:
           \texttt{python3 --version}.
     \item (Opcional) Instale \texttt{matplotlib} si desea regenerar las
