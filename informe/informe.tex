@@ -1,0 +1,1073 @@
+% =====================================================================
+%  Informe + Anexos — Actividad 1: LCS
+%  Documento autocontenido: todo el código y los datos están incrustados.
+%  Sin enlaces externos ni repositorios. Compilar con:
+%      pdflatex informe.tex && pdflatex informe.tex
+% =====================================================================
+\documentclass[11pt,a4paper]{article}
+
+% ---------- Codificación e idioma ----------
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage[spanish,es-nodecimaldot,es-tabla]{babel}
+
+% ---------- Geometría y maquetación ----------
+\usepackage[margin=2.2cm]{geometry}
+\usepackage{amsmath}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{graphicx}
+\usepackage{tikz}
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.17}
+\usepackage{caption}
+\captionsetup{font=small,labelfont=bf,skip=4pt}
+
+% ---------- Hipervínculos internos (sin URLs externas) ----------
+\usepackage{xcolor}
+\usepackage[hidelinks]{hyperref}
+
+% ---------- Listados de código ----------
+\usepackage{listings}
+\definecolor{codegreen}{rgb}{0,0.5,0}
+\definecolor{codegray}{rgb}{0.5,0.5,0.5}
+\definecolor{codeblue}{rgb}{0,0,0.6}
+\definecolor{codered}{rgb}{0.6,0,0}
+\definecolor{backcolour}{rgb}{0.97,0.97,0.97}
+
+\lstdefinestyle{py}{
+  language=Python,
+  backgroundcolor=\color{backcolour},
+  commentstyle=\color{codegreen}\itshape,
+  keywordstyle=\color{codeblue}\bfseries,
+  stringstyle=\color{codered},
+  numberstyle=\tiny\color{codegray},
+  basicstyle=\ttfamily\scriptsize,
+  breaklines=true, breakatwhitespace=true,
+  numbers=left, numbersep=6pt,
+  showstringspaces=false, tabsize=4,
+  frame=single, framerule=0.3pt,
+  rulecolor=\color{codegray!50},
+  xleftmargin=1em, xrightmargin=1em,
+}
+\lstdefinestyle{mk}{
+  language=make,
+  backgroundcolor=\color{backcolour},
+  basicstyle=\ttfamily\scriptsize, breaklines=true,
+  numbers=left, numbersep=6pt, frame=single, framerule=0.3pt,
+  rulecolor=\color{codegray!50},
+  xleftmargin=1em, xrightmargin=1em,
+}
+\lstdefinestyle{txt}{
+  backgroundcolor=\color{backcolour},
+  basicstyle=\ttfamily\scriptsize, breaklines=true,
+  numbers=none, frame=single, framerule=0.3pt,
+  rulecolor=\color{codegray!50},
+  xleftmargin=1em, xrightmargin=1em,
+}
+
+% ---------- Ajustes tipográficos ----------
+\setlength{\parskip}{2pt}
+\setlength{\parindent}{0pt}
+
+% ---------- Título ----------
+\title{\vspace{-1.5cm}\textbf{Diseño, análisis y comparación de algoritmos\\para la Subsecuencia Común Más Larga}}
+\author{Nombre Apellidos \\ \small Actividad 1 · Análisis de Algoritmos}
+\date{\today}
+
+\begin{document}
+\maketitle
+\vspace{-0.6cm}
+
+% =====================================================================
+%  RESUMEN
+% =====================================================================
+\begin{abstract}
+\noindent
+Se presentan y comparan tres aproximaciones al problema de la Subsecuencia
+Común Más Larga (LCS): una versión recursiva directa, la estrategia de
+divide y vencerás de Hirschberg y una solución mediante programación
+dinámica tabular. Se analiza su complejidad temporal y espacial, y se
+contrastan experimentalmente sobre cinco parejas de cadenas de ADN de
+longitud creciente hasta 1000 símbolos. Los resultados confirman el
+comportamiento exponencial de la versión recursiva, el uso lineal de
+memoria de Hirschberg y el equilibrio entre simplicidad y consumo de
+memoria de la versión tabular. El código fuente completo, el protocolo
+experimental y los resultados brutos se incluyen en los anexos de este
+mismo documento.
+
+\medskip
+\noindent\textbf{Palabras clave:} LCS, divide y vencerás, Hirschberg,
+programación dinámica, análisis de complejidad.
+\end{abstract}
+
+% =====================================================================
+%  1. INTRODUCCIÓN
+% =====================================================================
+\section{Introducción}
+
+Dadas dos cadenas $X$ e $Y$ de longitudes $m$ y $n$, la
+\emph{Subsecuencia Común Más Larga} (LCS) es una subsecuencia de
+longitud máxima que aparece en ambas cadenas conservando el orden
+relativo de los símbolos, aunque no necesariamente de forma contigua.
+El problema tiene aplicaciones directas en bioinformática (alineamiento
+de ADN y proteínas), en la comparación de versiones de ficheros
+(\texttt{diff}), en correctores ortográficos y en detección de plagio.
+
+El objetivo de esta actividad es poner en práctica tres estrategias
+algorítmicas clásicas sobre el mismo problema, medir empíricamente sus
+diferencias de tiempo y memoria, y justificar las elecciones de diseño
+en función de sus respectivas complejidades. Las tres versiones
+implementadas son:
+
+\begin{itemize}
+    \item \textbf{Versión A} — recursión directa, sin memorización.
+    \item \textbf{Versión B} — divide y vencerás según el algoritmo de
+          Hirschberg.
+    \item \textbf{Versión C} — programación dinámica tabular.
+\end{itemize}
+
+El resto del documento se organiza como sigue. La
+Sección~\ref{sec:metodologia} describe el diseño de cada algoritmo, su
+análisis de complejidad y el protocolo experimental. La
+Sección~\ref{sec:resultados} recoge las mediciones de tiempo de CPU y
+memoria máxima. La Sección~\ref{sec:discusion} interpreta los resultados
+y la Sección~\ref{sec:conclusiones} cierra con las conclusiones. Los
+anexos contienen el código fuente completo, los datos empleados y las
+instrucciones de reproducción local.
+
+% =====================================================================
+%  2. METODOLOGÍA
+% =====================================================================
+\section{Metodología}\label{sec:metodologia}
+
+\subsection{Definición recurrente del problema}
+
+Sea $L(i,j)$ la longitud de la LCS de los prefijos $X[0..i)$ e $Y[0..j)$.
+Se cumple:
+\[
+L(i,j)=
+\begin{cases}
+0, & i=0\ \text{o}\ j=0,\\[2pt]
+L(i-1,j-1)+1, & X[i-1]=Y[j-1],\\[2pt]
+\max\{L(i-1,j),\,L(i,j-1)\}, & \text{en otro caso}.
+\end{cases}
+\]
+
+\subsection{Versión A — recursión directa}
+
+Se traduce literalmente la recurrencia anterior a una función recursiva.
+No se almacena ningún resultado intermedio, por lo que cada subproblema
+se recalcula un número exponencial de veces. Su único estado adicional
+es la pila de recursión.
+
+\subsection{Versión B — divide y vencerás de Hirschberg}
+
+El algoritmo de Hirschberg~\cite{hirschberg1975} obtiene la LCS en
+tiempo $O(mn)$ y espacio $O(\min\{m,n\})$, evitando la tabla
+bidimensional. La idea es:
+
+\begin{enumerate}
+    \item Partir $X$ en dos mitades $X_1$ y $X_2$ de tamaños similares.
+    \item Calcular, mediante programación dinámica unidimensional, los
+          vectores de longitudes $L_{1}(j)=L(|X_1|,j)$ y
+          $L_{2}(j)=L(|X_2|,n-j)$.
+    \item Elegir el punto de corte $k$ que maximiza $L_1(k)+L_2(k)$.
+    \item Resolver recursivamente $(X_1, Y[0..k))$ y $(X_2, Y[k..n))$.
+\end{enumerate}
+
+La recursión alcanza profundidad $O(\log m)$. En el nivel $k$ los
+subproblemas suman como mucho $mn/2^{k}$ comparaciones, de modo que el
+total está acotado por $mn(1+\tfrac12+\tfrac14+\dots)\le 2mn$; de ahí el
+coste temporal $O(mn)$, con una constante aproximadamente doble que la
+de la DP tabular.
+La memoria auxiliar está dominada por los vectores de tamaño $n$, por lo
+que es $O(n)$ (o $O(\min\{m,n\})$ si se traspone la cadena más corta).
+
+\subsection{Versión C — programación dinámica tabular}
+
+Se rellena una matriz $\mathit{dp}$ de tamaño $(m+1)\times(n+1)$
+siguiendo el orden natural fila a fila. El valor final
+$\mathit{dp}[m][n]$ es la longitud de la LCS. El coste temporal es
+$O(mn)$ y el espacial es $O(mn)$ por la matriz completa. Si solo
+interesara la \emph{longitud}, bastaría con dos filas ($O(n)$); pero
+para reconstruir la subsecuencia se necesita la tabla, y además es la
+versión canónica que exige el enunciado.
+
+\subsection{Análisis de complejidad}
+
+La Tabla~\ref{tab:complejidad} resume las complejidades teóricas de las
+tres versiones. $T(n)$ denota el caso en que $m=n$; para el caso general
+basta sustituir $n$ por $\max\{m,n\}$ en la cota superior.
+
+\begin{table}[h]
+\centering
+\small
+\begin{tabular}{@{}llll@{}}
+\toprule
+\textbf{Versión} & \textbf{Tiempo} & \textbf{Memoria} & \textbf{Observación}\\
+\midrule
+A · Recursiva directa    & $O(2^{m+n})$                  & $O(m+n)$ pila    & Inviable a partir de $n\approx 18$\\
+B · Hirschberg           & $\Theta(mn)$                  & $O(\min\{m,n\})$ & Recursión con coste lineal por nivel\\
+C · DP tabular           & $\Theta(mn)$                  & $\Theta(mn)$     & Matriz completa\\
+\bottomrule
+\end{tabular}
+\caption{Complejidad temporal y espacial de las tres versiones.}\label{tab:complejidad}
+\end{table}
+
+\subsection{Diseño experimental}
+
+\textbf{Datos.} Se generaron cadenas aleatorias sobre el alfabeto
+$\{A,C,G,T\}$ (ADN) con un generador propio, garantizando
+reproducibilidad mediante semilla fija $s=42$. Se construyeron cinco
+parejas con longitudes $n\in\{50,\,100,\,250,\,500,\,1000\}$, todas con
+$m=n$. Para la Versión~A, dado su coste exponencial, se emplearon
+longitudes adicionales $n\in\{8,10,12,14,16,18,20\}$.
+
+\textbf{Métricas.} Para cada ejecución se registran:
+\begin{itemize}
+    \item tiempo de CPU medido con \texttt{time.process\_time()}
+          (excluye espera de E/S);
+    \item memoria pico medida con \texttt{tracemalloc} en un subproceso
+          independiente, para aislar el consumo del propio algoritmo.
+\end{itemize}
+
+\textbf{Protocolo.} Cada punto experimental se repite cinco veces y se
+reporta la mediana. Se fija un \emph{timeout} de 60~s por punto, que
+incluye las cinco repeticiones y la ejecución adicional de medida de
+memoria. El \emph{script}
+\texttt{benchmark.py} (Anexo~\ref{anexo:benchmark}) genera el CSV y las
+gráficas que alimentan la Sección~\ref{sec:resultados}.
+
+\textbf{Entorno.} Intel Xeon a 2,10\,GHz, Linux x86\_64, CPython~3.13,
+sin otras cargas significativas durante la ejecución.
+
+% =====================================================================
+%  3. RESULTADOS
+% =====================================================================
+\section{Resultados}\label{sec:resultados}
+
+Los valores de esta sección proceden de una ejecución de
+\texttt{make run} en el entorno descrito. El Anexo~\ref{anexo:datos}
+recoge el CSV completo y el Anexo~\ref{anexo:repro} las instrucciones
+para reproducirlos. Los tiempos absolutos variarán de un equipo a otro;
+las longitudes de LCS son idénticas en cualquier ejecución.
+
+\subsection{Versión A — crecimiento exponencial}
+
+La Tabla~\ref{tab:A} muestra el comportamiento de la recursión directa.
+El tiempo se multiplica por un factor de entre 8 y 16 con cada
+incremento de dos unidades de $n$, es decir, algo más de $3^{n}$ en la
+práctica. Con $n=16$ cada llamada tarda ya casi un segundo, y a partir
+de $n=18$ el punto experimental supera el \emph{timeout}.
+
+\begin{table}[h]
+\centering
+\small
+\begin{tabular}{@{}rrrr@{}}
+\toprule
+$n$ & Tiempo CPU (mediana) & Memoria pico & LCS \\
+\midrule
+8    & 0{,}05\,ms        & 0{,}4\,KB & 5 \\
+10   & 0{,}81\,ms        & 0{,}4\,KB & 6 \\
+12   & 10\,ms            & 0{,}4\,KB & 5 \\
+14   & 114\,ms           & 0{,}4\,KB & 7 \\
+16   & 963\,ms           & 0{,}4\,KB & 8 \\
+18   & \textit{timeout}  & ---       & --- \\
+20   & \textit{timeout}  & ---       & --- \\
+\bottomrule
+\end{tabular}
+\caption{Versión A sobre cadenas de ADN de pequeña longitud.}\label{tab:A}
+\end{table}
+
+\subsection{Versiones B y C — comparación a gran escala}
+
+La Tabla~\ref{tab:BC} contrasta Hirschberg y la DP tabular en las cinco
+longitudes exigidas. Ambas resuelven el caso de $1000$ símbolos en
+menos de 0,2\,s, pero difieren sustancialmente en memoria.
+
+\begin{table}[h]
+\centering
+\small
+\begin{tabular}{@{}rrrrrr@{}}
+\toprule
+& \multicolumn{2}{c}{\textbf{B · Hirschberg}}
+& \multicolumn{2}{c}{\textbf{C · DP tabular}} & \\
+\cmidrule(lr){2-3}\cmidrule(lr){4-5}
+$n$ & tiempo (ms) & memoria & tiempo (ms) & memoria & LCS\\
+\midrule
+50   & 0{,}44  & 3{,}1\,KB & 0{,}16 & 21\,KB    & 28 \\
+100  & 1{,}53  & 5{,}3\,KB & 0{,}70 & 82\,KB    & 60 \\
+250  & 8{,}89  & 10\,KB    & 4{,}32 & 504\,KB   & 162 \\
+500  & 35{,}8  & 18\,KB    & 18{,}9 & 2{,}1\,MB & 322 \\
+1000 & 148{,}6 & 66\,KB    & 94{,}8 & 11{,}5\,MB & 644 \\
+\bottomrule
+\end{tabular}
+\caption{Comparación de las versiones B y C sobre cinco parejas de
+cadenas.}\label{tab:BC}
+\end{table}
+
+La Figura~\ref{fig:tiempo-memoria} representa gráficamente ambos
+indicadores en escala logarítmica, junto con la Versión~A en la gráfica
+de tiempo. El tiempo de B y C crece de forma cuadrática con $n$: entre
+$n=50$ y $n=1000$ la pendiente log-log es 1,9 para Hirschberg y 2,0 para
+la DP tabular. La memoria sigue pendientes muy distintas: 2,1 para la DP
+tabular y 1,0 para Hirschberg, coherente con $\Theta(mn)$ y
+$O(\min\{m,n\})$ respectivamente.
+
+\begin{figure}[h]
+\centering
+\begin{tikzpicture}
+\begin{axis}[
+  width=0.48\linewidth, height=5.5cm,
+  xlabel={$n$}, ylabel={tiempo (ms)},
+  xmode=log, ymode=log,
+  legend style={font=\scriptsize,at={(0.97,0.03)},anchor=south east},
+  title={\small Tiempo de CPU},
+  grid=both, grid style={gray!20},
+]
+\addplot[mark=triangle*,green!50!black] coordinates {(8,0.050)(10,0.811)(12,10.01)(14,114.5)(16,962.7)};
+\addplot[mark=*,blue] coordinates {(50,0.439)(100,1.526)(250,8.885)(500,35.84)(1000,148.6)};
+\addplot[mark=square*,red] coordinates {(50,0.159)(100,0.696)(250,4.321)(500,18.89)(1000,94.76)};
+\legend{A, B, C}
+\end{axis}
+\end{tikzpicture}\hfill
+\begin{tikzpicture}
+\begin{axis}[
+  width=0.48\linewidth, height=5.5cm,
+  xlabel={$n$}, ylabel={memoria pico (KB)},
+  xmode=log, ymode=log,
+  legend style={font=\scriptsize,at={(0.03,0.97)},anchor=north west},
+  title={\small Memoria máxima},
+  grid=both, grid style={gray!20},
+]
+\addplot[mark=*,blue] coordinates {(50,3.06)(100,5.26)(250,10.02)(500,18.45)(1000,65.59)};
+\addplot[mark=square*,red] coordinates {(50,20.85)(100,81.92)(250,503.9)(500,2134.9)(1000,11725.3)};
+\legend{B, C}
+\end{axis}
+\end{tikzpicture}
+\caption{Tiempo de CPU y memoria máxima en función de $n$
+(escala log-log).}\label{fig:tiempo-memoria}
+\end{figure}
+
+% =====================================================================
+%  4. DISCUSIÓN
+% =====================================================================
+\section{Discusión}\label{sec:discusion}
+
+\paragraph{Recursión directa: coste teórico confirmado.}
+Los datos de la Tabla~\ref{tab:A} verifican el comportamiento
+exponencial predicho por el análisis. El tiempo se multiplica por unas
+diez veces cada dos unidades de $n$, lo que refleja la estructura de
+árbol binario de la recurrencia. El crecimiento observado queda por
+debajo de la cota $2^{m+n}=4^{n}$ porque cada coincidencia de símbolos
+genera una sola llamada en lugar de dos; con alfabeto de cuatro letras,
+aproximadamente una de cada cuatro comparaciones es una coincidencia.
+Para $n\le 14$ la versión responde en menos de 0,2\,s, con $n=18$ ya no
+completa las seis ejecuciones en 60\,s, y para $n=1000$ sería
+inabordable.
+
+La memoria pico medida es prácticamente constante (0,4\,KB). Esto no
+contradice la cota $O(m+n)$: \texttt{tracemalloc} registra los objetos
+creados en el \emph{heap}, pero no los marcos de la pila de recursión,
+que CPython~3.11+ gestiona en una zona propia. El consumo real crece
+linealmente con la profundidad de la pila, que nunca supera $m+n$
+llamadas anidadas.
+
+\paragraph{Hirschberg frente a DP tabular.}
+Ambas versiones comparten la cota temporal $\Theta(mn)$, pero
+Hirschberg es entre 1,6 y 2,8 veces más lenta según el tamaño. La causa
+es la que anticipa el análisis: el algoritmo recorre del orden de $2mn$
+celdas frente a las $mn$ de la DP tabular, y además paga las llamadas
+recursivas, las copias de subcadenas y la inversión de cadenas en cada
+nivel. La diferencia se vuelve decisiva en memoria: para $n=1000$, la
+tabla completa ocupa 11,5\,MB, mientras que Hirschberg necesita 66\,KB,
+unas 180 veces menos.
+
+El salto de memoria de Hirschberg entre $n=500$ (18\,KB) y $n=1000$
+(66\,KB) es mayor que el factor 2 esperado. Se explica por un detalle de
+CPython: los enteros entre $-5$ y $256$ están precalculados y no ocupan
+memoria nueva, mientras que los mayores se crean como objetos de 28
+bytes. Con $n=1000$ los valores de los vectores de longitudes superan 256
+y cada celda pasa a reservar un objeto propio. La pendiente asintótica
+sigue siendo lineal. El mismo efecto contribuye a que la memoria de la DP
+tabular crezca algo más deprisa que $n^{2}$ en el último tramo.
+
+\paragraph{¿Cuándo elegir cada versión?}
+La elección depende del recurso crítico:
+\begin{itemize}
+    \item Si solo se necesita la \emph{longitud} y $mn$ cabe en memoria,
+          la DP tabular con dos filas es la más simple y rápida de
+          implementar.
+    \item Si se necesita reconstruir la subsecuencia y las cadenas son
+          grandes (genómica), Hirschberg es la opción profesional:
+          mismo coste temporal, memoria lineal.
+    \item La versión recursiva directa tiene valor didáctico, pero no de
+          producción.
+\end{itemize}
+
+\paragraph{Limitaciones del experimento.}
+Las mediciones se tomaron sobre un único equipo, con cadenas aleatorias
+de alfabeto uniforme. Los tiempos absolutos dependen fuertemente del
+lenguaje y de la implementación: en Python el intérprete domina,
+mientras que en C/C++ las diferencias entre B y C serían menores en
+tiempo. La estructura de los datos (por ejemplo, alfabetos muy pequeños
+o cadenas con muchos símbolos repetidos) también altera el factor
+constante, aunque no la complejidad asintótica.
+
+% =====================================================================
+%  5. CONCLUSIONES
+% =====================================================================
+\section{Conclusiones}\label{sec:conclusiones}
+
+Se han diseñado, analizado y comparado empíricamente tres algoritmos
+para el problema de la LCS. Los experimentos confirman:
+
+\begin{enumerate}
+    \item que la \textbf{recursión directa} incurre en un coste
+          exponencial que la invalida a partir de $n\approx 18$ en el
+          entorno de pruebas, tal y como predice el análisis;
+    \item que la \textbf{estrategia de Hirschberg} alcanza el mismo
+          orden temporal que la DP tabular con un consumo de memoria dos
+          órdenes de magnitud menor (66\,KB frente a 11,5\,MB con
+          $n=1000$), a cambio de duplicar aproximadamente el tiempo, y es
+          la opción preferente cuando el espacio es un recurso crítico;
+    \item que la \textbf{DP tabular} es la solución más directa y la de
+          menor coste constante, y resulta adecuada cuando la tabla cabe
+          en memoria.
+\end{enumerate}
+
+Como trabajo futuro se propone extender el estudio a cadenas con
+estructura real (por ejemplo, secuencias genómicas), añadir una versión
+de DP con solo dos filas para el cálculo de la longitud, y repetir los
+experimentos en un lenguaje compilado para cuantificar el peso del
+intérprete.
+
+% =====================================================================
+%  REFERENCIAS
+% =====================================================================
+\section*{Referencias}
+\begin{thebibliography}{9}
+\small
+\bibitem{hirschberg1975} D.~S. Hirschberg, \emph{A linear space
+algorithm for computing maximal common subsequences}, Communications of
+the ACM, 18(6):341--343, 1975.
+\bibitem{clrs} T.~H. Cormen, C.~E. Leiserson, R.~L. Rivest y
+C.~Stein, \emph{Introduction to Algorithms}, 3.\textsuperscript{a} ed.,
+MIT Press, 2009, cap.~15.
+\bibitem{sankoff} D. Sankoff y J.~B. Kruskal, \emph{Time Warps, String
+Edits, and Macromolecules: The Theory and Practice of Sequence
+Comparison}, Addison-Wesley, 1983.
+\end{thebibliography}
+
+% =====================================================================
+%  ANEXOS
+% =====================================================================
+\clearpage
+\appendix
+\pagenumbering{Alph}
+
+% ---------------------------------------------------------------------
+\section{Código fuente completo}\label{anexo:codigo}
+
+Este anexo contiene la totalidad del código entregado. Los ficheros
+están organizados de modo que, copiados en una carpeta local con la
+estructura indicada en el Anexo~\ref{anexo:repro}, el proyecto se
+ejecuta con un único comando (\texttt{make run}). Todo el contenido está
+incrustado en este documento; no se requiere ningún recurso externo.
+
+\subsection{Estructura del proyecto}
+
+\begin{verbatim}
+.
+|-- Makefile
+|-- src/
+|   |-- lcs.py          # implementaciones A, B, C
+|   |-- benchmark.py    # experimentos + CSV + gráficas
+|   |-- test_lcs.py     # pruebas de correctitud
+|   `-- analyze.py      # tablas LaTeX a partir del CSV
+`-- results/            # generado por `make run`
+    |-- resultados.csv
+    |-- tiempo.png
+    `-- memoria.png
+\end{verbatim}
+
+\subsection{Índice de fragmentos de código}
+\lstlistoflistings
+
+\subsection{\texttt{src/lcs.py} — implementaciones A, B y C}\label{anexo:lcs}
+
+\begin{lstlisting}[style=py, caption={\texttt{src/lcs.py}}]
+"""Tres implementaciones de la Longitud de la Subsecuencia Comun Mas Larga (LCS).
+
+Version A: recursion directa, sin memorizacion.
+Version B: divide y venceras de Hirschberg (memoria lineal).
+Version C: programacion dinamica tabular.
+
+Todas devuelven la *longitud* de la LCS. La reconstruccion de la subsecuencia
+es una extension trivial (O(m+n)) que no altera las conclusiones del informe.
+"""
+import sys
+
+sys.setrecursionlimit(10000)
+
+
+# ---------- Version A: recursiva directa ----------
+def lcs_recursiva(a: str, b: str) -> int:
+    def rec(i: int, j: int) -> int:
+        if i == 0 or j == 0:
+            return 0
+        if a[i - 1] == b[j - 1]:
+            return 1 + rec(i - 1, j - 1)
+        return max(rec(i - 1, j), rec(i, j - 1))
+
+    return rec(len(a), len(b))
+
+
+# ---------- Version B: Hirschberg ----------
+def _last_row(a: str, b: str) -> list:
+    """Ultima fila de la DP (longitudes LCS(a, b[:j])) en O(|b|) memoria."""
+    n = len(b)
+    prev = [0] * (n + 1)
+    for ca in a:
+        curr = [0] * (n + 1)
+        for j in range(1, n + 1):
+            if ca == b[j - 1]:
+                curr[j] = prev[j - 1] + 1
+            else:
+                curr[j] = prev[j] if prev[j] >= curr[j - 1] else curr[j - 1]
+        prev = curr
+    return prev
+
+
+def lcs_hirschberg(a: str, b: str) -> int:
+    if not a or not b:
+        return 0
+    if len(a) == 1:
+        return 1 if a in b else 0
+
+    mid = len(a) // 2
+    l1 = _last_row(a[:mid], b)
+    l2 = _last_row(a[mid:][::-1], b[::-1])[::-1]
+
+    k, best = 0, -1
+    for j in range(len(b) + 1):
+        s = l1[j] + l2[j]
+        if s > best:
+            best, k = s, j
+
+    return lcs_hirschberg(a[:mid], b[:k]) + lcs_hirschberg(a[mid:], b[k:])
+
+
+# ---------- Version C: DP tabular ----------
+def lcs_dp(a: str, b: str) -> int:
+    m, n = len(a), len(b)
+    dp = [[0] * (n + 1) for _ in range(m + 1)]
+    for i in range(1, m + 1):
+        ai = a[i - 1]
+        row, prev = dp[i], dp[i - 1]
+        for j in range(1, n + 1):
+            if ai == b[j - 1]:
+                row[j] = prev[j - 1] + 1
+            else:
+                row[j] = prev[j] if prev[j] >= row[j - 1] else row[j - 1]
+    return dp[m][n]
+\end{lstlisting}
+
+\subsection{\texttt{src/test\_lcs.py} — pruebas de correctitud}\label{anexo:test}
+
+\begin{lstlisting}[style=py, caption={\texttt{src/test\_lcs.py}}]
+"""Pruebas de correctitud de las tres versiones frente a una DP de referencia."""
+import random
+
+from lcs import lcs_recursiva, lcs_hirschberg, lcs_dp
+
+
+def _reference(a: str, b: str) -> int:
+    m, n = len(a), len(b)
+    dp = [[0] * (n + 1) for _ in range(m + 1)]
+    for i in range(1, m + 1):
+        for j in range(1, n + 1):
+            if a[i - 1] == b[j - 1]:
+                dp[i][j] = dp[i - 1][j - 1] + 1
+            else:
+                dp[i][j] = max(dp[i - 1][j], dp[i][j - 1])
+    return dp[m][n]
+
+
+def run(trials: int = 300) -> None:
+    rng = random.Random(0)
+    cases = [("", ""), ("A", ""), ("", "A"), ("A", "A"), ("AB", "BA")]
+    for _ in range(trials):
+        a = "".join(rng.choice("ACGT") for _ in range(rng.randint(0, 12)))
+        b = "".join(rng.choice("ACGT") for _ in range(rng.randint(0, 12)))
+        cases.append((a, b))
+
+    for a, b in cases:
+        expected = _reference(a, b)
+        for name, fn in [("A", lcs_recursiva),
+                         ("B", lcs_hirschberg),
+                         ("C", lcs_dp)]:
+            got = fn(a, b)
+            assert got == expected, (
+                f"Version {name}: {a!r} {b!r} -> {got} != {expected}"
+            )
+    print(f"OK: {len(cases)} casos verificados en las 3 versiones.")
+
+
+if __name__ == "__main__":
+    run()
+\end{lstlisting}
+
+\subsection{\texttt{src/benchmark.py} — protocolo experimental}\label{anexo:benchmark}
+
+\begin{lstlisting}[style=py, caption={\texttt{src/benchmark.py}}]
+"""Benchmarks de las tres versiones de LCS.
+
+Para cada (version, n) lanza un subproceso que:
+  - genera las cadenas con semilla fija,
+  - mide el tiempo de CPU (mediana de REPEATS),
+  - mide la memoria pico de Python con tracemalloc.
+El proceso padre aplica timeout y escribe un CSV y dos graficas (log-log).
+
+Uso:
+    python3 src/benchmark.py --csv results/resultados.csv
+"""
+import argparse
+import csv
+import json
+import random
+import statistics
+import subprocess
+import sys
+import time
+import tracemalloc
+from pathlib import Path
+
+HERE = Path(__file__).resolve().parent
+sys.path.insert(0, str(HERE))
+
+ALPHABET = "ACGT"
+SEED = 42
+REPEATS = 5
+TIMEOUT = 60  # segundos
+
+CONFIGS = {
+    "A": [8, 10, 12, 14, 16, 18, 20],
+    "B": [50, 100, 250, 500, 1000],
+    "C": [50, 100, 250, 500, 1000],
+}
+
+
+# ----------------------- worker -----------------------
+def _gen(n: int, seed: int) -> tuple:
+    rng = random.Random(seed)
+    return (
+        "".join(rng.choice(ALPHABET) for _ in range(n)),
+        "".join(rng.choice(ALPHABET) for _ in range(n)),
+    )
+
+
+def worker(version: str, n: int, seed: int) -> None:
+    from lcs import lcs_recursiva, lcs_hirschberg, lcs_dp
+    fn = {"A": lcs_recursiva, "B": lcs_hirschberg, "C": lcs_dp}[version]
+
+    a, b = _gen(n, seed)
+
+    # tiempo (mediana de REPEATS)
+    times, result = [], None
+    for _ in range(REPEATS):
+        t0 = time.process_time()
+        result = fn(a, b)
+        times.append(time.process_time() - t0)
+
+    # memoria pico (asignaciones Python durante la llamada)
+    tracemalloc.start()
+    fn(a, b)
+    peak = tracemalloc.get_traced_memory()[1]
+    tracemalloc.stop()
+
+    print(json.dumps({
+        "version": version,
+        "n": n,
+        "time_s": statistics.median(times),
+        "mem_kb": peak / 1024.0,
+        "lcs": result,
+    }))
+
+
+# ----------------------- driver -----------------------
+def run_one(version: str, n: int) -> dict:
+    cmd = [sys.executable, str(Path(__file__).resolve()),
+           "--worker", version, str(n), str(SEED)]
+    try:
+        out = subprocess.run(cmd, capture_output=True, text=True,
+                             timeout=TIMEOUT, check=True)
+        return json.loads(out.stdout)
+    except subprocess.TimeoutExpired:
+        return {"version": version, "n": n, "time_s": None,
+                "mem_kb": None, "lcs": None, "status": "timeout"}
+
+
+def write_csv(rows, path: Path) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("w", newline="") as f:
+        w = csv.writer(f)
+        w.writerow(["version", "n", "time_ms", "mem_kb", "lcs", "status"])
+        for r in rows:
+            t = "" if r.get("time_s") is None else f"{r['time_s']*1000:.3f}"
+            m = "" if r.get("mem_kb") is None else f"{r['mem_kb']:.2f}"
+            w.writerow([r["version"], r["n"], t, m,
+                        r.get("lcs", ""), r.get("status", "ok")])
+
+
+def write_plots(rows, outdir: Path) -> None:
+    try:
+        import matplotlib
+        matplotlib.use("Agg")
+        import matplotlib.pyplot as plt
+    except ImportError:
+        print("[benchmark] matplotlib no instalado: se omiten las graficas.")
+        return
+
+    outdir.mkdir(parents=True, exist_ok=True)
+    colors = {"A": "tab:green", "B": "tab:blue", "C": "tab:red"}
+    marks = {"A": "^", "B": "o", "C": "s"}
+
+    for field, fname, ylabel, title in [
+        ("time_s", "tiempo.png", "tiempo CPU (s)", "Tiempo de CPU"),
+        ("mem_kb", "memoria.png", "memoria pico (KB)", "Memoria maxima"),
+    ]:
+        fig, ax = plt.subplots(figsize=(5.5, 4))
+        for v in ("A", "B", "C"):
+            pts = [(r["n"], r[field]) for r in rows
+                   if r["version"] == v and r.get(field) is not None]
+            if not pts:
+                continue
+            xs, ys = zip(*sorted(pts))
+            ax.plot(xs, ys, marker=marks[v], color=colors[v],
+                    label=f"Version {v}")
+        ax.set_xscale("log")
+        ax.set_yscale("log")
+        ax.set_xlabel("n")
+        ax.set_ylabel(ylabel)
+        ax.set_title(title)
+        ax.grid(True, which="both", ls=":", alpha=0.4)
+        ax.legend()
+        fig.tight_layout()
+        fig.savefig(outdir / fname, dpi=150)
+        plt.close(fig)
+        print(f"[benchmark] grafica -> {outdir / fname}")
+
+
+# ----------------------- main -----------------------
+def main() -> None:
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--worker", nargs=3, metavar=("VERSION", "N", "SEED"))
+    ap.add_argument("--csv", default="results/resultados.csv")
+    args = ap.parse_args()
+
+    if args.worker:
+        v, n, s = args.worker
+        worker(v, int(n), int(s))
+        return
+
+    rows = []
+    for version, sizes in CONFIGS.items():
+        for n in sizes:
+            print(f"[benchmark] version {version}, n={n} ...", flush=True)
+            r = run_one(version, n)
+            rows.append(r)
+            if r.get("status") == "timeout":
+                print("   -> timeout")
+            else:
+                print(f"   -> t={r['time_s']*1000:8.2f} ms   "
+                      f"mem={r['mem_kb']:8.1f} KB   LCS={r['lcs']}")
+
+    csv_path = Path(args.csv)
+    write_csv(rows, csv_path)
+    print(f"[benchmark] CSV -> {csv_path}")
+    write_plots(rows, csv_path.parent)
+
+
+if __name__ == "__main__":
+    main()
+\end{lstlisting}
+
+\subsection{\texttt{src/analyze.py} — generación de tablas LaTeX}\label{anexo:analyze}
+
+\begin{lstlisting}[style=py, caption={\texttt{src/analyze.py}}]
+"""Convierte results/resultados.csv en las Tablas 2 y 3 del informe (LaTeX).
+
+Uso:
+    python3 src/analyze.py
+    python3 src/analyze.py --csv otro.csv
+    python3 src/analyze.py --out tablas.tex
+"""
+import argparse
+import csv
+from pathlib import Path
+
+
+def fmt_time(ms):
+    """Tiempo en ms, con 2 decimales y separador decimal LaTeX (coma)."""
+    if ms is None or ms == "":
+        return "---"
+    v = float(ms)
+    if v >= 1000:
+        s = f"{v/1000:.2f}".rstrip("0").rstrip(".")
+        s = s.replace(".", "{,}")
+        return f"{s}\\,s"
+    s = f"{v:.2f}".rstrip("0").rstrip(".")
+    return s.replace(".", "{,}")
+
+
+def fmt_mem(kb):
+    """Memoria: KB si <1024, MB en otro caso (con 2 decimales)."""
+    if kb is None or kb == "":
+        return "---"
+    v = float(kb)
+    if v >= 1024:
+        s = f"{v/1024:.1f}".rstrip("0").rstrip(".")
+        return s.replace(".", "{,}") + "\\,MB"
+    s = f"{v:.1f}" if v < 10 else f"{v:.0f}"
+    return s.replace(".", "{,}") + "\\,KB"
+
+
+def fmt_lcs(v):
+    return "---" if v in (None, "") else str(v)
+
+
+def load(csv_path):
+    rows = []
+    with open(csv_path, newline="") as f:
+        for r in csv.DictReader(f):
+            rows.append({
+                "version": r["version"],
+                "n": int(r["n"]),
+                "time_ms": None if r["time_ms"] == "" else float(r["time_ms"]),
+                "mem_kb":  None if r["mem_kb"] == ""  else float(r["mem_kb"]),
+                "lcs":     None if r["lcs"] == ""     else r["lcs"],
+                "status":  r.get("status", "ok"),
+            })
+    return rows
+
+
+def by_version(rows, v):
+    return sorted([r for r in rows if r["version"] == v], key=lambda r: r["n"])
+
+
+def table_A(rows):
+    out = [
+        r"\begin{table}[h]", r"\centering", r"\small",
+        r"\begin{tabular}{@{}rrrr@{}}", r"\toprule",
+        r"$n$ & Tiempo CPU (mediana) & Memoria pico & LCS \\",
+        r"\midrule",
+    ]
+    for r in by_version(rows, "A"):
+        t = "\\textit{timeout}" if r["status"] == "timeout" else fmt_time(r["time_ms"])
+        m = fmt_mem(r["mem_kb"])
+        l = fmt_lcs(r["lcs"])
+        out.append(f"{r['n']:<4} & {t:<20} & {m:<10} & {l} \\\\")
+    out += [r"\bottomrule", r"\end{tabular}",
+            r"\caption{Version A.}\label{tab:A}", r"\end{table}"]
+    return "\n".join(out)
+
+
+def table_BC(rows):
+    b = {r["n"]: r for r in by_version(rows, "B")}
+    c = {r["n"]: r for r in by_version(rows, "C")}
+    ns = sorted(set(b) | set(c))
+    out = [
+        r"\begin{table}[h]", r"\centering", r"\small",
+        r"\begin{tabular}{@{}rrrrrr@{}}", r"\toprule",
+        r"& \multicolumn{2}{c}{\textbf{B - Hirschberg}} "
+        r"& \multicolumn{2}{c}{\textbf{C - DP tabular}} & \\",
+        r"\cmidrule(lr){2-3}\cmidrule(lr){4-5}",
+        r"$n$ & tiempo (ms) & memoria & tiempo (ms) & memoria & LCS\\",
+        r"\midrule",
+    ]
+    for n in ns:
+        rb, rc = b.get(n, {}), c.get(n, {})
+        out.append(
+            f"{n:<5} & {fmt_time(rb.get('time_ms')):<10} & "
+            f"{fmt_mem(rb.get('mem_kb')):<9} & "
+            f"{fmt_time(rc.get('time_ms')):<10} & "
+            f"{fmt_mem(rc.get('mem_kb')):<9} & "
+            f"{fmt_lcs(rb.get('lcs') or rc.get('lcs'))} \\\\"
+        )
+    out += [r"\bottomrule", r"\end{tabular}",
+            r"\caption{Versiones B y C.}\label{tab:BC}", r"\end{table}"]
+    return "\n".join(out)
+
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--csv", default="results/resultados.csv")
+    ap.add_argument("--out", default=None)
+    args = ap.parse_args()
+
+    rows = load(Path(args.csv))
+    text = ("% === Tabla 2 ===\n" + table_A(rows)
+            + "\n\n% === Tabla 3 ===\n" + table_BC(rows) + "\n")
+    if args.out:
+        Path(args.out).write_text(text, encoding="utf-8")
+        print(f"Tablas escritas en {args.out}")
+    else:
+        print(text)
+
+
+if __name__ == "__main__":
+    main()
+\end{lstlisting}
+
+\subsection{\texttt{Makefile}}\label{anexo:makefile}
+
+\begin{lstlisting}[style=mk, caption={\texttt{Makefile}}]
+PYTHON ?= python3
+CSV    := results/resultados.csv
+
+.PHONY: all run test analyze clean help
+
+all: run
+
+run:
+	@mkdir -p results
+	$(PYTHON) src/benchmark.py --csv $(CSV)
+
+test:
+	$(PYTHON) src/test_lcs.py
+
+analyze: run
+	$(PYTHON) src/analyze.py --csv $(CSV) --out results/tablas.tex
+	@echo "Tablas generadas en results/tablas.tex"
+
+clean:
+	rm -rf results
+	find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
+
+help:
+	@echo "make run     - ejecuta benchmarks (CSV + graficas)"
+	@echo "make test    - pruebas de correctitud"
+	@echo "make analyze - vuelca Tablas 2 y 3 en LaTeX"
+	@echo "make clean   - limpia artefactos"
+\end{lstlisting}
+
+% ---------------------------------------------------------------------
+\section{Datos y resultados brutos}\label{anexo:datos}
+
+\subsection{Generación de los datos}
+
+Todas las cadenas empleadas en el informe se generan de forma
+determinista con el siguiente procedimiento (función \texttt{\_gen} del
+Anexo~\ref{anexo:benchmark}):
+
+\begin{itemize}
+    \item Alfabeto: $\{A,C,G,T\}$.
+    \item Semilla: $s=42$.
+    \item Para cada $n$, se construyen dos cadenas independientes
+          $X,Y\in\{A,C,G,T\}^n$ usando un generador pseudoaleatorio
+          \texttt{random.Random(42)}.
+\end{itemize}
+
+Al fijar la semilla, cualquier ejecución de \texttt{make run} reproduce
+exactamente las mismas cadenas y, por tanto, los mismos valores de LCS.
+La Tabla~\ref{tab:lcs-valores} recoge la longitud de la LCS obtenida
+para cada par. Las versiones B y C coinciden en todos los casos, y el
+cociente LCS$/n$ tiende a 0,64--0,65, el valor esperado para cadenas
+aleatorias sobre un alfabeto de cuatro símbolos.
+
+\begin{table}[h]
+\centering
+\small
+\begin{tabular}{@{}lrrrrr@{}}
+\toprule
+$n$ & 50 & 100 & 250 & 500 & 1000 \\
+\midrule
+LCS & 28 & 60 & 162 & 322 & 644 \\
+\bottomrule
+\end{tabular}
+\caption{Longitud de la LCS para cada pareja de cadenas (semilla
+$s=42$).}\label{tab:lcs-valores}
+\end{table}
+
+\subsection{Volcado del CSV de resultados}
+
+El Anexo~\ref{anexo:benchmark} genera el siguiente fichero
+\texttt{results/resultados.csv}. Se incluye aquí como evidencia de los
+tiempos y memoria reportados en la Sección~\ref{sec:resultados}.
+
+\begin{lstlisting}[style=txt, caption={\texttt{results/resultados.csv}}]
+version,n,time_ms,mem_kb,lcs,status
+A,8,0.050,0.42,5,ok
+A,10,0.811,0.42,6,ok
+A,12,10.010,0.42,5,ok
+A,14,114.472,0.42,7,ok
+A,16,962.700,0.42,8,ok
+A,18,,,,timeout
+A,20,,,,timeout
+B,50,0.439,3.06,28,ok
+B,100,1.526,5.26,60,ok
+B,250,8.885,10.02,162,ok
+B,500,35.838,18.45,322,ok
+B,1000,148.575,65.59,644,ok
+C,50,0.159,20.85,28,ok
+C,100,0.696,81.92,60,ok
+C,250,4.321,503.88,162,ok
+C,500,18.889,2134.90,322,ok
+C,1000,94.759,11725.34,644,ok
+\end{lstlisting}
+
+\subsection{Pruebas de correctitud}
+
+La ejecución de \texttt{make test} (Anexo~\ref{anexo:test}) valida las
+tres versiones contra una implementación de referencia (la propia DP
+tabular) sobre 305 casos: cinco casos borde (cadenas vacías, de un solo
+carácter, un carácter frente a dos) y 300 pares aleatorios de longitud
+entre 0 y 12. Todas las comprobaciones finalizan con éxito:
+
+\begin{lstlisting}[style=txt, caption={Salida de \texttt{make test}}]
+OK: 305 casos verificados en las 3 versiones.
+\end{lstlisting}
+
+% ---------------------------------------------------------------------
+\section{Instrucciones de reproducción local}\label{anexo:repro}
+
+Todo el código y los datos necesarios están contenidos en este
+documento. Para reproducir los resultados en un equipo local:
+
+\begin{enumerate}
+    \item Cree una carpeta de trabajo, por ejemplo \texttt{lcs/}.
+    \item Copie en ella los ficheros del Anexo~\ref{anexo:codigo}
+          respetando la estructura indicada en la
+          Sección~\ref{anexo:codigo} (carpetas \texttt{src/} y
+          \texttt{Makefile} en la raíz).
+    \item Verifique que dispone de Python~3.9 o superior:
+          \texttt{python3 --version}.
+    \item (Opcional) Instale \texttt{matplotlib} si desea regenerar las
+          gráficas: \texttt{pip install matplotlib}.
+    \item Ejecute:
+\end{enumerate}
+
+\begin{verbatim}
+make test      # valida las 3 versiones contra una DP de referencia
+make run       # ejecuta los benchmarks, genera CSV y graficas
+make analyze   # vuelca las Tablas 2 y 3 en LaTeX
+\end{verbatim}
+
+Los artefactos quedan en \texttt{results/}:
+
+\begin{itemize}
+    \item \texttt{resultados.csv} — datos brutos de todas las mediciones;
+    \item \texttt{tiempo.png}, \texttt{memoria.png} — gráficas log-log;
+    \item \texttt{tablas.tex} — Tablas 2 y 3 listas para pegar en el
+          informe.
+\end{itemize}
+
+El tiempo total de ejecución de \texttt{make run} es de
+aproximadamente 2--3 minutos, de los que 120~s corresponden a los dos
+\emph{timeouts} de la Versión~A ($n=18$ y $n=20$). El compilado del informe no requiere ningún paso
+adicional más allá de \texttt{pdflatex informe.tex} dos veces.
+
+\end{document}
