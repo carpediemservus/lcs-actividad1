@@ -60,7 +60,7 @@ def by_version(rows, v):
 
 def table_A(rows):
     out = [
-        r"\begin{table}[h]", r"\centering", r"\small",
+        r"\begin{table}[h]", r"\centering",
         r"\begin{tabular}{@{}rrrr@{}}", r"\toprule",
         r"$n$ & Tiempo CPU (mediana) & Memoria pico & LCS \\",
         r"\midrule",
@@ -80,7 +80,7 @@ def table_BC(rows):
     c = {r["n"]: r for r in by_version(rows, "C")}
     ns = sorted(set(b) | set(c))
     out = [
-        r"\begin{table}[h]", r"\centering", r"\small",
+        r"\begin{table}[h]", r"\centering",
         r"\begin{tabular}{@{}rrrrrr@{}}", r"\toprule",
         r"& \multicolumn{2}{c}{\textbf{B - Hirschberg}} "
         r"& \multicolumn{2}{c}{\textbf{C - DP tabular}} & \\",

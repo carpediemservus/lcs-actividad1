@@ -2,9 +2,11 @@
 
 Para cada (version, n) lanza un subproceso que:
   - genera las cadenas con semilla fija,
+  - calcula la LCS (la subsecuencia) y registra su longitud,
   - mide el tiempo de CPU (mediana de REPEATS),
   - mide la memoria pico de Python con tracemalloc.
-El proceso padre aplica timeout y escribe un CSV y dos graficas (log-log).
+El proceso padre aplica timeout, escribe un CSV, dos graficas (log-log) y
+guarda las parejas de cadenas y las LCS obtenidas en results/datos/.
 
 Uso:
     python3 src/benchmark.py --csv results/resultados.csv
@@ -68,7 +70,8 @@ def worker(version: str, n: int, seed: int) -> None:
         "n": n,
         "time_s": statistics.median(times),
         "mem_kb": peak / 1024.0,
-        "lcs": result,
+        "lcs": len(result),
+        "sub": result,
     }))
 
 
@@ -95,6 +98,19 @@ def write_csv(rows, path: Path) -> None:
             m = "" if r.get("mem_kb") is None else f"{r['mem_kb']:.2f}"
             w.writerow([r["version"], r["n"], t, m,
                         r.get("lcs", ""), r.get("status", "ok")])
+
+
+def write_data(rows, outdir: Path) -> None:
+    """Guarda cada pareja (X, Y) y la LCS obtenida por la version C."""
+    d = outdir / "datos"
+    d.mkdir(parents=True, exist_ok=True)
+    for r in rows:
+        if r["version"] != "C" or r.get("sub") is None:
+            continue
+        x, y = _gen(r["n"], SEED)
+        (d / f"n{r['n']}.txt").write_text(
+            f"X={x}\nY={y}\nLCS={r['sub']}\n", encoding="utf-8")
+    print(f"[benchmark] datos -> {d}")
 
 
 def write_plots(rows, outdir: Path) -> None:
@@ -163,6 +179,7 @@ def main() -> None:
     csv_path = Path(args.csv)
     write_csv(rows, csv_path)
     print(f"[benchmark] CSV -> {csv_path}")
+    write_data(rows, csv_path.parent)
     write_plots(rows, csv_path.parent)
 
 

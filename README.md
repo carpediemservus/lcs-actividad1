@@ -1,6 +1,6 @@
 # Actividad 1 — Subsecuencia Común Más Larga (LCS)
 
-Tres implementaciones del cálculo de la LCS de dos cadenas, con su comparación experimental de tiempo de CPU y memoria:
+Tres implementaciones que calculan la LCS de dos cadenas (devuelven la subsecuencia, no solo su longitud), con su comparación experimental de tiempo de CPU y memoria:
 
 - **Versión A**: recursión directa, sin memorización.
 - **Versión B**: divide y vencerás de Hirschberg (memoria lineal).
@@ -17,8 +17,8 @@ El informe completo está en `informe/informe.pdf` (fuente en `informe/informe.t
 ## Uso
 
 ```bash
-make test      # valida las 3 versiones contra una DP de referencia (305 casos)
-make run       # ejecuta los benchmarks y genera results/resultados.csv y las gráficas
+make test      # comprueba que cada resultado es subsecuencia común y de longitud óptima
+make run       # ejecuta los benchmarks: CSV, gráficas y datos en results/
 make analyze   # genera results/tablas.tex con las Tablas 2 y 3 del informe
 make clean     # elimina los resultados generados
 ```
@@ -36,6 +36,7 @@ make clean     # elimina los resultados generados
 |   |-- test_lcs.py     # pruebas de correctitud
 |   `-- analyze.py      # tablas LaTeX a partir del CSV
 |-- results/            # resultados de referencia incluidos en el informe
+|   `-- datos/          # parejas X, Y y LCS de cada n
 `-- informe/
     |-- informe.tex
     `-- informe.pdf
@@ -43,4 +44,4 @@ make clean     # elimina los resultados generados
 
 ## Datos
 
-Las cadenas se generan sobre el alfabeto {A, C, G, T} con semilla fija 42, así que cada ejecución reproduce exactamente los mismos pares y las mismas longitudes de LCS. Los tiempos absolutos dependen del equipo.
+Las cadenas se generan sobre el alfabeto {A, C, G, T} con semilla fija 42, así que cada ejecución reproduce exactamente los mismos pares y las mismas longitudes de LCS. Las parejas usadas y la LCS obtenida están en `results/datos/`. Los tiempos absolutos dependen del equipo.
